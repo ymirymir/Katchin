@@ -9,14 +9,16 @@ export interface Expense {
 }
 
 export function createScene(): THREE.Scene {
-    const scene = new THREE.Scene();
+  const scene = new THREE.Scene();
   scene.background = new THREE.Color(0x0a0e27);
   return scene;
 };
 
 export function createCamera(width: number, height: number): THREE.PerspectiveCamera {
   const camera = new THREE.PerspectiveCamera(60, width / height, 0.1, 1000);
-  camera.position.set(3,3,6);
+  // Fixed camera position - looking straight at the carousel
+  camera.position.set(0, 0, 11); 
+  camera.lookAt(0, 0, 0);
   return camera;
 };
 
@@ -24,45 +26,57 @@ export function createRenderer(width: number, height: number): THREE.WebGLRender
   const renderer = new THREE.WebGLRenderer({ antialias: true });
   renderer.setSize(width, height);
   renderer.setPixelRatio(window.devicePixelRatio);
+  renderer.shadowMap.enabled = true;
   return renderer;
 };
 
 export function createLighting(scene: THREE.Scene) {
-  scene.add(new THREE.AmbientLight(0xffffff, 0.5));
+  scene.add(new THREE.AmbientLight(0xffffff, 0.2));
 
-  const pointLight = new THREE.PointLight(0xffffff, 1);
-  pointLight.position.set(5, 5, 5);
+  // The "Hero" Spotlight - stays fixed at the front center
+  const spotLight = new THREE.SpotLight(0xffffff, 2);
+  spotLight.position.set(0, 5, 10);
+  spotLight.angle = Math.PI / 6;
+  spotLight.penumbra = 0.5;
+  spotLight.decay = 2;
+  spotLight.distance = 20;
+  scene.add(spotLight);
+
+  // Subtle accent light
+  const pointLight = new THREE.PointLight(0x4ecdc4, 0.5);
+  pointLight.position.set(-5, 2, 5);
   scene.add(pointLight);
+}
 
-  const pointLight2 = new THREE.PointLight(0x4ecdc4, 0.5);
-  pointLight2.position.set(-5, 3, -5);
-  scene.add(pointLight2);
-};
+// RENAMED: createExpensePill
+export function createExpensePill(expense: Expense, index: number, total: number): THREE.Mesh {
+  // Logic for Pill Dimensions
+  // Radius grows slowly, Height grows more noticeably with cost
+  const radius = Math.max(0.3, Math.log(expense.amount + 1) * 0.15);
+  const length = Math.max(1, Math.log(expense.amount + 1) * 0.8);
 
-export function createGrid(scene: THREE.Scene) {
-  const gridHelper = new THREE.GridHelper(20, 20, 0x444444, 0x222222);
-  scene.add(gridHelper);
-};
-
-export function createExpenseCube (expense: Expense, index: number, total: number): THREE.Mesh {
-  const size = Math.log(expense.amount + 1) * 0.5;
-  const geometry = new THREE.BoxGeometry(size, size, size);
+  // CapsuleGeometry(radius, length, capSubdivisions, radialSegments)
+  const geometry = new THREE.CapsuleGeometry(radius, length, 4, 16);
+  
   const material = new THREE.MeshPhongMaterial({ 
     color: expense.color,
-    shininess: 100,
+    shininess: 150, // Higher shininess looks better on curves
     emissive: expense.color,
-    emissiveIntensity: 0.2
+    emissiveIntensity: 0.1
   });
-  const cube = new THREE.Mesh(geometry, material);
   
+  const pill = new THREE.Mesh(geometry, material);
+  
+  // Arrange in a circle
   const angle = (index / total) * Math.PI * 2;
-  const radius = 3;
-  cube.position.x = Math.cos(angle) * radius;
-  cube.position.z = Math.sin(angle) * radius;
-  cube.position.y = size / 2;
-
-  cube.castShadow = true;
-  cube.receiveShadow = true;
+  const orbitRadius = 4.5; // Distance from center
   
-  return cube;
+  pill.position.x = Math.cos(angle) * orbitRadius;
+  pill.position.z = Math.sin(angle) * orbitRadius;
+  pill.position.y = 0; // Centered vertically
+
+  pill.castShadow = true;
+  pill.receiveShadow = true;
+  
+  return pill;
 };
